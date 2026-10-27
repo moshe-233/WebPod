@@ -1,0 +1,65 @@
+#!/bin/bash
+# stub-chromium -- test double for a chromium-family browser window.
+#
+# Logs every invocation to $CHROMIUM_STUB_LOG (one block per process: a
+# "launch pid=..." header and one "arg <token>" line per argv element), then
+# mimics chromium's Singleton* profile locks inside --user-data-dir and
+# stays alive until killed, exactly like a real app window. Both "--app=X"
+# and "--app X" argument forms are recognized (same for --user-data-dir).
+#
+# Singleton forwarding is simulated as well: when the profile's
+# SingletonLock names a pid that is still alive, this launch behaves like a
+# second real chromium on the same --user-data-dir -- it logs a
+# "singleton-forward" line, hands its URL to the live instance and exits 0
+# instead of staying. A lock naming a dead pid is stale and gets taken over.
+
+log=${CHROMIUM_STUB_LOG:-/dev/null}
+
+app=""
+profile=""
+args=("$@")
+i=0
+while ((i < ${#args[@]})); do
+  case "${args[$i]}" in
+    --app=*) app=${args[$i]#--app=} ;;
+    --app) if ((i + 1 < ${#args[@]})); then app=${args[$((i + 1))]}; fi ;;
+    --user-data-dir=*) profile=${args[$i]#--user-data-dir=} ;;
+    --user-data-dir) if ((i + 1 < ${#args[@]})); then profile=${args[$((i + 1))]}; fi ;;
+  esac
+  ((i += 1))
+done
+
+# Build the whole block first so concurrent windows never interleave lines
+# (one printf == one append write).
+block="launch pid=$$ app=$app profile=$profile"
+for arg in "${args[@]}"; do
+  block+=$'\n'"arg $arg"
+done
+
+if [[ -n $profile ]]; then
+  mkdir -p "$profile" 2>/dev/null || :
+  lock_pid=""
+  if [[ -L $profile/SingletonLock ]]; then
+    lock_pid=$(readlink "$profile/SingletonLock" 2>/dev/null |
+      sed -n 's/.*-\([0-9][0-9]*\)$/\1/p')
+  fi
+  if [[ -n $lock_pid ]] && kill -0 "$lock_pid" 2>/dev/null; then
+    printf '%s\n%s\n' "$block" "singleton-forward pid=$$ to $lock_pid" >>"$log" 2>/dev/null || :
+    exit 0
+  fi
+  : >"$profile/SingletonCookie" 2>/dev/null || :
+  : >"$profile/SingletonSocket" 2>/dev/null || :
+  ln -sfn "$(uname -n)-$$" "$profile/SingletonLock" 2>/dev/null || :
+fi
+
+# Not a forwarded launch: log the block and stay alive.
+printf '%s\n' "$block" >>"$log" 2>/dev/null || :
+
+# Sleep forever: exec so the window pid IS the sleeper and SIGTERM lands
+# on it directly (no orphaned sleep children for the stop ladder).
+if sleep --version 2>/dev/null | grep -q GNU; then
+  exec sleep infinity
+fi
+while :; do
+  sleep 60 || :
+done

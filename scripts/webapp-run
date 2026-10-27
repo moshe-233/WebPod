@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Launches use a prepared uv environment. Never sync or download on click.
+set -e
+
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+if [[ -f $here/runtime/webapp.py ]]; then
+  runtime="$here/runtime"
+  program="$runtime/webapp.py"
+else
+  runtime=$(cd -- "$here/.." && pwd)
+  program="$here/webapp.py"
+fi
+
+if [[ ! -x $runtime/.venv/bin/python || ! -f $program ]]; then
+  echo "Error: webapp runtime is not prepared; run scripts/webapp-setup.sh (or uv sync in the source project)." >&2
+  exit 1
+fi
+
+# The bulk status command runs every two seconds, so this program is loaded
+# thousands of times a day. A script run as __main__ never gets a .pyc written,
+# which made every poll recompile the whole file. Compile once into a sibling
+# bytecode file and execute that instead; the compiled form keeps __name__,
+# sys.argv, the exit code and stderr identical to running the source.
+#
+# The bytecode file is a cache only: a stale, missing or unwritable one falls
+# back to the source, so a read-only checkout and a syntax error both still
+# report exactly what they would have reported before.
+compiled="$program.pyc"
+if [[ ! -f $compiled || $program -nt $compiled ]]; then
+  "$runtime/.venv/bin/python" - "$program" "$compiled" <<'PY' >/dev/null 2>&1 || rm -f -- "$compiled"
+import py_compile, sys
+py_compile.compile(sys.argv[1], cfile=sys.argv[2], doraise=True)
+PY
+fi
+
+if [[ -f $compiled ]]; then
+  exec "$runtime/.venv/bin/python" "$compiled" "$@"
+fi
+exec "$runtime/.venv/bin/python" "$program" "$@"

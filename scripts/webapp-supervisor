@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# Legacy desktop entry compatibility; the old per-app daemon is archived.
+set -e
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+exec "$here/webapp-run" "$@"

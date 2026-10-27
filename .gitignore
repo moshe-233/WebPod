@@ -1,0 +1,31 @@
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.py.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Logs & temp files
+*.log
+*.tmp
+*.bak
+*.orig
+
+# Runtime signatures & local state
+.sync-signature
+*.pending/
+
+# Editor & OS artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/

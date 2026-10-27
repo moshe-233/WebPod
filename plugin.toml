@@ -1,0 +1,40 @@
+id = "moshe-233/webapp-pod"
+name = "WebPod"
+version = "1.0.0"
+plugin_api = 23
+author = "moshe-233"
+license = "MIT"
+icon = "world-plus"
+description = "Turn websites and local services into isolated Chromium app windows with dedicated profiles; a lightweight launcher resolves URLs without resident daemons."
+dependencies = ["bash", "chmod", "cp", "curl", "file", "grep", "gio", "head", "mkdir", "python3", "rm", "sed", "setsid", "ss", "tail", "tr", "uv", "xdg-settings"]
+tags = ["panel", "utility"]
+
+[[setting]]
+key = "env_file"
+type = "string"
+label_key = "settings.env_file.label"
+description_key = "settings.env_file.description"
+default = ""
+advanced = true
+
+[[service]]
+id = "supervisor"
+entry = "supervisor.luau"
+
+[[panel]]
+id = "panel"
+entry = "panel.luau"
+width = 480
+height = 600
+placement = "floating"
+position = "center"
+
+[[desktop_widget]]
+id = "monitor"
+entry = "desktop_widget.luau"
+
+[[launcher_provider]]
+id = "wa"
+entry = "launcher.luau"
+prefix = "wa"
+glyph = "world"

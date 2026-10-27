@@ -1,0 +1,9 @@
+[project]
+name = "webapp-pod-runtime"
+version = "1.0.0"
+description = "Lightweight isolated web app launcher runtime"
+requires-python = ">=3.9"
+dependencies = []
+
+[tool.uv]
+package = false
